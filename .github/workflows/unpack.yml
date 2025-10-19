@@ -1,0 +1,49 @@
+name: Unpack Project ZIP to Repo
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - project.zip
+
+permissions:
+  contents: write
+
+jobs:
+  unpack:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify ZIP presence
+        run: |
+          test -f project.zip || (echo "project.zip not found at repo root" && exit 1)
+
+      - name: Unzip into temp
+        run: |
+          rm -rf extracted
+          mkdir -p extracted
+          unzip -q project.zip -d extracted
+
+      - name: Replace repo contents (keep .github)
+        run: |
+          shopt -s dotglob
+          for p in *; do
+            if [ "$p" != ".github" ] && [ "$p" != "project.zip" ]; then
+              rm -rf "$p"
+            fi
+          done
+          shopt -u dotglob
+          shopt -s dotglob
+          mv extracted/* .
+          shopt -u dotglob
+          rm -rf extracted project.zip
+
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Unpack Shabkati WiFi project" || echo "No changes to commit"
+          git push
